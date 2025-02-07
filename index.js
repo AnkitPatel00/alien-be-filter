@@ -65,9 +65,9 @@ app.get("/api/products", async (req, res) => {
 
   try {
 
-    const highestPrice = await ProductModel.findOne(priceQuery).sort({price:-1}).select("price")
+    const highestPrice = await ProductModel.findOne(priceQuery).sort({price:-1})
     const lowestPrice = await ProductModel.findOne(priceQuery).sort({price:1})
-    const products = await ProductModel.find(query).sort(sortPrice).limit(pLimit).skip(pSkip)
+    const products = await ProductModel.find().sort(sortPrice).limit(pLimit).skip(pSkip)
     //const total = await ProductModel.find(query)
     const total = await ProductModel.countDocuments(query)
 
@@ -75,7 +75,7 @@ app.get("/api/products", async (req, res) => {
     {
       res.status(400).json({error:"error in getting products"})
     }
-    res.status(200).json({products:products,highestPrice:highestPrice.price,lowestPrice:lowestPrice.price,total:total})
+    res.status(200).json({products:products,highestPrice:highestPrice,lowestPrice:lowestPrice,total:total})
   }
   catch {
     res.status(500).json({error:"failed to get products"})
