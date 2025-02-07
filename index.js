@@ -27,47 +27,47 @@ app.get("/api/products", async (req, res) => {
   const query = {}
   const priceQuery = {}
   
-    const searchVal =[{title : {$regex:search,$options:"i"}},
-    { description: { $regex: search, $options: "i" } }]
+//     const searchVal =[{title : {$regex:search,$options:"i"}},
+//     { description: { $regex: search, $options: "i" } }]
   
 
-  if (search)
-  {
-    query["$or"] = searchVal
-    priceQuery["$or"] = searchVal
-  }
+//   if (search)
+//   {
+//     query["$or"] = searchVal
+//     priceQuery["$or"] = searchVal
+//   }
 
-  if (category)
-  {
-    query.category = { $in: category }
-    priceQuery.category = { $in: category }
-  }
+//   if (category)
+//   {
+//     query.category = { $in: category }
+//     priceQuery.category = { $in: category }
+//   }
   
-  if (minRating)
-  {
-    query.rating = { $gte: minRating }
-     priceQuery.rating = { $gte: minRating }
-  }
+//   if (minRating)
+//   {
+//     query.rating = { $gte: minRating }
+//      priceQuery.rating = { $gte: minRating }
+//   }
 
-  if (minPrice && maxPrice)
-  {
-    query.$and = [{price:{$gte:minPrice*1}},{price:{$lte:maxPrice*1}}]
-  }
- else if (minPrice)
-  {
-    query.price = {$gte:minPrice*1}
-  }
-  else if (maxPrice)
-  {
-    query.price = {$lte:maxPrice*1}
-  }
+//   if (minPrice && maxPrice)
+//   {
+//     query.$and = [{price:{$gte:minPrice*1}},{price:{$lte:maxPrice*1}}]
+//   }
+//  else if (minPrice)
+//   {
+//     query.price = {$gte:minPrice*1}
+//   }
+//   else if (maxPrice)
+//   {
+//     query.price = {$lte:maxPrice*1}
+//   }
 
 
   try {
 
     const highestPrice = await ProductModel.findOne(priceQuery).sort({price:-1})
     const lowestPrice = await ProductModel.findOne(priceQuery).sort({price:1})
-    const products = await ProductModel.find().sort(sortPrice).limit(pLimit).skip(pSkip)
+    const products = await ProductModel.find(query).sort(sortPrice).limit(pLimit).skip(pSkip)
     //const total = await ProductModel.find(query)
     const total = await ProductModel.countDocuments(query)
 
