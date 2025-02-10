@@ -27,40 +27,40 @@ app.get("/api/products", async (req, res) => {
   const query = {}
   const priceQuery = {}
   
-//     const searchVal =[{title : {$regex:search,$options:"i"}},
-//     { description: { $regex: search, $options: "i" } }]
+    const searchVal =[{title : {$regex:search,$options:"i"}},
+    { description: { $regex: search, $options: "i" } }]
   
 
-//   if (search)
-//   {
-//     query["$or"] = searchVal
-//     priceQuery["$or"] = searchVal
-//   }
+  if (search)
+  {
+    query["$or"] = searchVal
+    priceQuery["$or"] = searchVal
+  }
 
-//   if (category)
-//   {
-//     query.category = { $in: category }
-//     priceQuery.category = { $in: category }
-//   }
+  if (category)
+  {
+    query.category = { $in: category }
+    priceQuery.category = { $in: category }
+  }
   
-//   if (minRating)
-//   {
-//     query.rating = { $gte: minRating }
-//      priceQuery.rating = { $gte: minRating }
-//   }
+  if (minRating)
+  {
+    query.rating = { $gte: minRating }
+     priceQuery.rating = { $gte: minRating }
+  }
 
-//   if (minPrice && maxPrice)
-//   {
-//     query.$and = [{price:{$gte:minPrice*1}},{price:{$lte:maxPrice*1}}]
-//   }
-//  else if (minPrice)
-//   {
-//     query.price = {$gte:minPrice*1}
-//   }
-//   else if (maxPrice)
-//   {
-//     query.price = {$lte:maxPrice*1}
-//   }
+  if (minPrice && maxPrice)
+  {
+    query.$and = [{price:{$gte:minPrice*1}},{price:{$lte:maxPrice*1}}]
+  }
+ else if (minPrice)
+  {
+    query.price = {$gte:minPrice*1}
+  }
+  else if (maxPrice)
+  {
+    query.price = {$lte:maxPrice*1}
+  }
 
 
   try {
@@ -68,14 +68,13 @@ app.get("/api/products", async (req, res) => {
     const highestPrice = await ProductModel.findOne(priceQuery).sort({price:-1})
     const lowestPrice = await ProductModel.findOne(priceQuery).sort({price:1})
     const products = await ProductModel.find(query).sort(sortPrice).limit(pLimit).skip(pSkip)
-    //const total = await ProductModel.find(query)
     const total = await ProductModel.countDocuments(query)
 
     if (!products)
     {
       res.status(400).json({error:"error in getting products"})
     }
-    res.status(200).json({products:products,highestPrice:highestPrice,lowestPrice:lowestPrice,total:total})
+    res.status(200).json({products:products,highestPrice:highestPrice.price,lowestPrice:lowestPrice.price,total:total})
   }
   catch {
     res.status(500).json({error:"failed to get products"})
