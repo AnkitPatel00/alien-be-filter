@@ -2,10 +2,16 @@ const initializeDatabase = require('./db/db.connect')
 const express = require("express")
 const cors = require('cors')
 const ProductModel = require('./models/products.model')
+const UserModel = require('./models/users.model')
+const bcrypt = require('bcryptjs')
+const jwt = require("jsonwebtoken")
+const WishlistModel = require('./models/wishlist.model')
 
 const app = express()
 app.use(express.json())
-app.use(cors({origin:"*"}))
+app.use(cors({ origin: "*" }))
+
+const jwt_key = process.env.jwt_key
 
 initializeDatabase()
 
@@ -14,6 +20,34 @@ app.get("/", (req,res) => {
     <p> - api/products<p>
     `)
 })
+
+//token authentication middleware
+
+const jwtAuth = async (req, res, next) => {
+  
+  const token = req.headers["authorization"]
+
+  if (!token)
+  {
+   return res.status(400).json({messsage:"token required"})
+   }
+
+  try {
+    
+    const unWrapToken = jwt.verify(token, jwt_key)
+    
+    if (unWrapToken)
+    {
+req.user = unWrapToken.user
+      next()
+    }
+
+  }
+  catch (error)
+  {
+    throw new Error("failed to authenticate")
+  }
+}
 
 app.get("/api/products", async (req, res) => {
   
@@ -126,6 +160,126 @@ app.delete("/api/products/many",async(req,res) => {
   }
 })
 
+
+//** Users *//
+
+
+//register user
+
+app.post("/api/users", async (req,res) => {
+
+  const {userName,email,password} = req.body
+
+  try {
+
+    //username exist
+    const isUsernameExist = await UserModel.findOne({userName})
+
+    if (isUsernameExist)
+    {
+     return res.status(409).json({error:"username already exist"})
+    }
+    //email exist
+    const isEmailExist = await UserModel.findOne({email})
+
+    if (isEmailExist)
+    {
+     return res.status(409).json({error:"email already exist"})
+    }
+
+    if (password.length<=5)
+    {
+     return res.status(400).json({error:"password more then 5 latters"})
+    }
+
+const salt = await bcrypt.genSalt(10)
+    const hashedPassword = await bcrypt.hash(password, salt)
+  
+    const newUser = new UserModel({userName,email,password:hashedPassword})
+    const savedUSer = await newUser.save()
+
+ res.status(201).json({message:`${savedUSer.userName} is registered successfully`})
+    
+  }
+  catch (error)
+  {
+    res.status(500).json({error:"failed to register user"})
+  }
+})
+
+//login user
+
+app.post("/api/users/login", async (req,res) => {
+  
+  const {email,password} = req.body
+
+  try {
+
+   //email exist
+    const isEmailExist = await UserModel.findOne({email})
+
+    if (!isEmailExist)
+    {
+     return res.status(404).json({error:"user not found"})
+    }
+
+    const hashedPassword = isEmailExist.password
+
+    const isPasswordMatch = await bcrypt.compare(password, hashedPassword)
+    
+    if (!isPasswordMatch)
+    {
+       return res.status(409).json({error:"invalid credentials"}) 
+    }
+
+    const user = isEmailExist.toObject()
+    delete user.password
+   
+
+    token = jwt.sign({user},jwt_key,{expiresIn:"1h"})
+
+    res.status(200).json({message:`welcome ${user.userName}`,token})
+
+  }
+  catch(error) {
+     res.status(500).json({error:"failed to login"})
+  }
+})
+
+//wishlist
+
+app.post('/api/products/wishlist',jwtAuth,async (req, res) => {
+  const { productId } = req.body
+  const {_id} = req.user
+
+  try {
+
+    // alredy exist in wish list
+
+    const isAlreadyinWishlist = await WishlistModel.findOne({ productId })
+    
+    if (isAlreadyinWishlist)
+    {
+      return res.status(409).json({error:"item already in wishlist"})
+    }
+    const newWishlist = new WishlistModel({userId:_id,productId})
+    const savedWishlist = await newWishlist.save()
+    if (!savedWishlist)
+    {
+return res.status(409).json({error:"error in adding wishlist in wishlist"})
+    }
+    res.status(201).json({message:"item added in wishlist",savedWishlist})
+  }
+  catch (error)
+  {
+res.status(500).json({error:"failed to add in wishlist"})
+  }
+})
+
+app.use((req,res,next) => {
+  res.status(404).json({ error: "invalid api rout" })
+  next()
+})
 
 const PORT = process.env.PORT || 5000
 
