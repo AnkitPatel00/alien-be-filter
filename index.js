@@ -45,7 +45,7 @@ req.user = unWrapToken.user
   }
   catch (error)
   {
-    throw new Error("failed to authenticate")
+    res.status(500).json({error:"failed to authenticate"})
   }
 }
 
@@ -175,9 +175,15 @@ app.post("/api/users", async (req,res) => {
     //username exist
     const isUsernameExist = await UserModel.findOne({userName})
 
+
+
     if (isUsernameExist)
     {
-     return res.status(409).json({error:"username already exist"})
+     return res.status(409).json({error:"username has already been taken."})
+    }
+    if (userName.includes(" "))
+    {
+     return res.status(400).json({error:"remove space from username."})
     }
     //email exist
     const isEmailExist = await UserModel.findOne({email})
@@ -223,9 +229,15 @@ app.post("/api/users/login", async (req,res) => {
      return res.status(404).json({error:"user not found"})
     }
 
+    if (password.length<=5)
+    {
+     return res.status(400).json({error:"password more then 5 latters"})
+    }
+
     const hashedPassword = isEmailExist.password
 
     const isPasswordMatch = await bcrypt.compare(password, hashedPassword)
+
     
     if (!isPasswordMatch)
     {
@@ -234,19 +246,60 @@ app.post("/api/users/login", async (req,res) => {
 
     const user = isEmailExist.toObject()
     delete user.password
-   
+    delete user.createdAt
+    delete user.updatedAt
 
-    token = jwt.sign({user},jwt_key,{expiresIn:"1h"})
-
+    token = jwt.sign({ user }, jwt_key, { expiresIn: "1h" })
+    
     res.status(200).json({message:`welcome ${user.userName}`,token})
-
   }
   catch(error) {
      res.status(500).json({error:"failed to login"})
   }
 })
 
+//verify token
+
+app.get("/api/users/token", jwtAuth, async (req, res) => {
+  const user = req.user
+  try {
+    res.status(200).json({isLoggin:true,user})
+  }
+  catch (error)
+  {
+    res.status(500).json({error:error.message})
+  }
+})
+
+//fetch user
+
+app.get("/api/users", jwtAuth, async (req, res) => {
+  const user = req.user
+  try {
+    const loggeduser = await UserModel.findById(user._id)
+    
+    if (!loggeduser)
+    {
+res.status(404).json({ error:"user not found" })
+    }
+
+     const userObj = loggeduser.toObject()
+    delete userObj.password
+    delete userObj.createdAt
+    delete userObj.updatedAt
+
+    res.status(200).json({ user: userObj })
+  }
+  catch (error)
+  {
+    res.status(500).json({error:"failed to get user information"})
+  }
+})
+
+
 //wishlist
+
+//add to wishlist
 
 app.post('/api/products/wishlist',jwtAuth,async (req, res) => {
   const { productId } = req.body
@@ -257,12 +310,17 @@ app.post('/api/products/wishlist',jwtAuth,async (req, res) => {
     // alredy exist in wish list
 
     const isAlreadyinWishlist = await WishlistModel.findOne({ productId })
+
+
     
     if (isAlreadyinWishlist)
     {
       return res.status(409).json({error:"item already in wishlist"})
     }
-    const newWishlist = new WishlistModel({userId:_id,productId})
+    const newWishlist =await new WishlistModel({ userId: _id, productId }).populate("productId")
+    
+ 
+
     const savedWishlist = await newWishlist.save()
     if (!savedWishlist)
     {
@@ -275,6 +333,58 @@ return res.status(409).json({error:"error in adding wishlist in wishlist"})
 res.status(500).json({error:"failed to add in wishlist"})
   }
 })
+
+//remove from wishlist
+
+app.post('/api/products/wishlist/remove',jwtAuth,async (req, res) => {
+  const { productId } = req.body
+
+  try {
+
+    const itemDeletedinWishlist = await WishlistModel.findOneAndDelete({productId})
+
+    
+    if (!itemDeletedinWishlist)
+    {
+      return res.status(400).json({error:"error in removing from wishlist"})
+    }
+    
+    res.status(200).json({message:"item remove from wishlist",wishlistRemovedItem:itemDeletedinWishlist})
+  }
+  catch (error)
+  {
+res.status(500).json({error:"failed to remove from wishlist"})
+  }
+})
+
+
+//fetch wishlist
+
+app.get('/api/products/wishlist',jwtAuth,async (req, res) => {
+const {_id} = req.user
+
+  try {
+
+    // alredy exist in wish list
+
+    const wishlistItems = await WishlistModel.find({ userId:_id }).populate("productId")
+    
+    if (!wishlistItems)
+    {
+      return res.status(409).json({error:"error in getting wihslist items"})
+    }
+    if (wishlistItems.length<1)
+    {
+      return res.status(200).json({message:"No Items in wihslist",wishlistItems:[]})
+    }
+    res.status(200).json({wishlistItems})
+  }
+  catch (error)
+  {
+res.status(500).json({error:"failed to add in wishlist"})
+  }
+})
+
 
 app.use((req,res,next) => {
   res.status(404).json({ error: "invalid api rout" })
