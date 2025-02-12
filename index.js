@@ -253,7 +253,8 @@ app.post("/api/users/login", async (req,res) => {
     
     res.status(200).json({message:`welcome ${user.userName}`,token})
   }
-  catch(error) {
+  catch (error) {
+    console.log(error)
      res.status(500).json({error:"failed to login"})
   }
 })
